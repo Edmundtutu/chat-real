@@ -11,8 +11,9 @@ const groupChats: Record<string, {name: string}> = {
   'literature-corner': { name: 'Literature Corner' },
 };
 
-export default function GroupChatPage({ params: { groupId } }: { params: { groupId: string } }) {
+export default function GroupChatPage({ params }: { params: { groupId: string } }) {
   const { user, loading } = useUser();
+  const { groupId } = params;
 
   if (loading || !user) {
     return (

@@ -8,8 +8,9 @@ import { getChatRoomId } from '@/lib/utils';
 import { ChatView } from '@/components/chat/ChatView';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function UserChatPage({ params: { otherUserId } }: { params: { otherUserId: string } }) {
+export default function UserChatPage({ params }: { params: { otherUserId: string } }) {
   const { user, loading: userLoading } = useUser();
+  const { otherUserId } = params;
   const [otherUser, setOtherUser] = useState<{ name: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
