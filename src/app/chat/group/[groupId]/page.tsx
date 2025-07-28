@@ -11,7 +11,7 @@ const groupChats: Record<string, {name: string}> = {
   'literature-corner': { name: 'Literature Corner' },
 };
 
-export default function GroupChatPage({ params }: { params: { groupId: string } }) {
+export default function GroupChatPage({ params: { groupId } }: { params: { groupId: string } }) {
   const { user, loading } = useUser();
 
   if (loading || !user) {
@@ -32,10 +32,10 @@ export default function GroupChatPage({ params }: { params: { groupId: string } 
       );
   }
 
-  const group = groupChats[params.groupId];
+  const group = groupChats[groupId];
   if (!group) {
     return <div>Group not found</div>;
   }
 
-  return <ChatView chatRoomId={params.groupId} currentUser={user} chatPartner={{id: params.groupId, name: group.name}} isGroupChat={true} />;
+  return <ChatView chatRoomId={groupId} currentUser={user} chatPartner={{id: groupId, name: group.name}} isGroupChat={true} />;
 }

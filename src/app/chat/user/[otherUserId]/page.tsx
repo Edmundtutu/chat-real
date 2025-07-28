@@ -8,13 +8,13 @@ import { getChatRoomId } from '@/lib/utils';
 import { ChatView } from '@/components/chat/ChatView';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function UserChatPage({ params }: { params: { otherUserId: string } }) {
+export default function UserChatPage({ params: { otherUserId } }: { params: { otherUserId: string } }) {
   const { user, loading: userLoading } = useUser();
   const [otherUser, setOtherUser] = useState<{ name: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userRef = ref(db, `users/${params.otherUserId}`);
+    const userRef = ref(db, `users/${otherUserId}`);
     const unsubscribe = onValue(userRef, (snapshot) => {
       if (snapshot.exists()) {
         setOtherUser(snapshot.val());
@@ -22,7 +22,7 @@ export default function UserChatPage({ params }: { params: { otherUserId: string
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [params.otherUserId]);
+  }, [otherUserId]);
 
   if (userLoading || loading || !user || !otherUser) {
     return (
@@ -42,7 +42,7 @@ export default function UserChatPage({ params }: { params: { otherUserId: string
     );
   }
 
-  const chatRoomId = getChatRoomId(user.userId, params.otherUserId);
+  const chatRoomId = getChatRoomId(user.userId, otherUserId);
 
-  return <ChatView chatRoomId={chatRoomId} currentUser={user} chatPartner={{id: params.otherUserId, name: otherUser.name}} isGroupChat={false} />;
+  return <ChatView chatRoomId={chatRoomId} currentUser={user} chatPartner={{id: otherUserId, name: otherUser.name}} isGroupChat={false} />;
 }
