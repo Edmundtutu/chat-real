@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ref, onValue, push, serverTimestamp, set, remove } from 'firebase/database';
+import { ref, onValue, push, serverTimestamp, set, remove, update } from 'firebase/database';
 import { db } from '@/lib/firebase';
 import type { User } from '@/hooks/useUser';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { SendHorizonal, User as UserIcon, Users, Paperclip, Mic, X } from 'lucide-react';
+import { SendHorizonal, User as UserIcon, Users, Paperclip, Mic, X, Check, CheckCheck } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
@@ -20,6 +20,7 @@ interface Message {
   type: 'text' | 'image' | 'video' | 'audio';
   url?: string;
   fileName?: string;
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 interface TypingStatus {
@@ -43,13 +44,38 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
     const messagesRef = ref(db, `chats/${chatRoomId}/messages`);
     const unsubscribe = onValue(messagesRef, (snapshot) => {
       const messagesData: Message[] = [];
+      const updates: Record<string, any> = {};
       snapshot.forEach((childSnapshot) => {
-        messagesData.push({ id: childSnapshot.key!, ...childSnapshot.val() });
+        const message = { id: childSnapshot.key!, ...childSnapshot.val() };
+        messagesData.push(message);
+
+        // If the message is not from the current user and is not 'read', update its status
+        if (message.senderId !== currentUser.userId && message.status !== 'read') {
+          updates[`chats/${chatRoomId}/messages/${message.id}/status`] = 'read';
+        }
       });
       setMessages(messagesData);
+
+      if(Object.keys(updates).length > 0) {
+        update(ref(db), updates);
+      }
     });
     return () => unsubscribe();
-  }, [chatRoomId]);
+  }, [chatRoomId, currentUser.userId]);
+
+  useEffect(() => {
+    // When messages are loaded for the first time or updated,
+    // mark received messages as 'delivered' if they are just 'sent'.
+    const updates: Record<string, any> = {};
+    messages.forEach(message => {
+        if(message.senderId !== currentUser.userId && message.status === 'sent') {
+            updates[`chats/${chatRoomId}/messages/${message.id}/status`] = 'delivered';
+        }
+    })
+    if(Object.keys(updates).length > 0) {
+        update(ref(db), updates);
+    }
+  }, [messages, chatRoomId, currentUser.userId]);
 
   useEffect(() => {
     const typingRef = ref(db, `chats/${chatRoomId}/typing`);
@@ -76,6 +102,7 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
         senderName: currentUser.name,
         timestamp: serverTimestamp(),
         type: 'text',
+        status: 'sent',
       });
       setNewMessage('');
       const userTypingRef = ref(db, `chats/${chatRoomId}/typing/${currentUser.userId}`);
@@ -139,6 +166,7 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
       type,
       url,
       fileName,
+      status: 'sent',
     });
   };
 
@@ -177,7 +205,6 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
     }
   };
 
-
   const renderMessageContent = (message: Message) => {
     switch (message.type) {
       case 'image':
@@ -191,6 +218,21 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
         return <p className="text-base">{message.text}</p>;
     }
   };
+  
+  const renderMessageStatus = (message: Message) => {
+      if (message.senderId === currentUser.userId && !isGroupChat) {
+          if (message.status === 'read') {
+              return <CheckCheck className="h-4 w-4 text-blue-500" />;
+          }
+          if (message.status === 'delivered') {
+              return <CheckCheck className="h-4 w-4" />;
+          }
+          if (message.status === 'sent') {
+              return <Check className="h-4 w-4" />;
+          }
+      }
+      return null;
+  }
 
   return (
     <div className="flex-1 flex flex-col h-screen bg-secondary/50 rounded-l-lg">
@@ -226,9 +268,12 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
                  <p className="text-xs font-semibold text-accent pb-1">{message.senderName}</p>
               )}
               {renderMessageContent(message)}
-              <p className="text-xs opacity-70 mt-1 text-right">
-                {message.timestamp ? formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }) : 'sending...'}
-              </p>
+              <div className="flex items-center justify-end gap-2 text-xs opacity-70 mt-1">
+                <span>
+                    {message.timestamp ? formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }) : 'sending...'}
+                </span>
+                {renderMessageStatus(message)}
+              </div>
             </div>
             {message.senderId === currentUser.userId && (
                 <Avatar className="w-8 h-8">
