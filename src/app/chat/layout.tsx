@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ref, onDisconnect, remove, set, serverTimestamp } from 'firebase/database';
-import { Sidebar } from '@/components/chat/Sidebar';
+import { SidebarProvider, Sidebar, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
+import { ChatSidebar } from '@/components/chat/Sidebar';
 import { useUser } from '@/hooks/useUser';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PanelLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUser();
@@ -20,9 +23,8 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
     }
 
     const userRef = ref(db, `users/${user.userId}`);
-    const presenceRef = ref(db, `.info/connected`);
-
-    onDisconnect(userRef).remove();
+    
+    onDisconnect(userRef).update({ online: false, last_active: serverTimestamp() });
 
     set(userRef, {
         name: user.name,
@@ -30,15 +32,12 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         last_active: serverTimestamp()
     });
 
-    return () => {
-      remove(userRef);
-    };
   }, [user, loading, router]);
 
   if (loading || !user) {
     return (
       <div className="flex h-screen w-full p-4">
-        <div className="w-64 mr-4">
+        <div className="w-64 mr-4 hidden md:block">
             <Skeleton className="h-full w-full" />
         </div>
         <div className="flex-1">
@@ -49,9 +48,17 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar currentUser={user} />
-      <main className="flex-1 flex flex-col">{children}</main>
-    </div>
+    <SidebarProvider>
+        <div className="flex h-screen bg-background">
+            <Sidebar>
+                <ChatSidebar currentUser={user} />
+            </Sidebar>
+            <SidebarInset>
+              <main className="flex-1 flex flex-col h-screen">
+                  {children}
+              </main>
+            </SidebarInset>
+        </div>
+    </SidebarProvider>
   );
 }

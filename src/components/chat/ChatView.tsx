@@ -6,10 +6,11 @@ import { db } from '@/lib/firebase';
 import type { User } from '@/hooks/useUser';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { SendHorizonal, User as UserIcon, Users, Paperclip, Mic, X, Check, CheckCheck } from 'lucide-react';
+import { SendHorizonal, User as UserIcon, Users, Paperclip, Mic, X, Check, CheckCheck, PanelLeft } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
+import { useSidebar } from '../ui/sidebar';
 
 interface Message {
   id: string;
@@ -39,6 +40,7 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const { isMobile, toggleSidebar } = useSidebar();
 
   useEffect(() => {
     const messagesRef = ref(db, `chats/${chatRoomId}/messages`);
@@ -212,10 +214,10 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
       case 'video':
         return <video src={message.url} controls className="max-w-xs md:max-w-md rounded-lg" />;
       case 'audio':
-        return <audio src={message.url} controls className="w-full" />;
+        return <audio src={message.url} controls className="w-full max-w-[250px]" />;
       case 'text':
       default:
-        return <p className="text-base">{message.text}</p>;
+        return <p className="text-base break-words">{message.text}</p>;
     }
   };
   
@@ -235,8 +237,13 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
   }
 
   return (
-    <div className="flex-1 flex flex-col h-screen bg-secondary/50 rounded-l-lg">
+    <div className="flex-1 flex flex-col h-screen bg-secondary/50 md:rounded-l-lg">
       <header className="flex items-center p-4 border-b bg-card shadow-sm">
+         {isMobile && (
+            <Button variant="ghost" size="icon" className="mr-2" onClick={toggleSidebar}>
+                <PanelLeft />
+            </Button>
+         )}
          <div className="flex items-center space-x-3">
              <Avatar>
                  <AvatarFallback className="bg-primary text-primary-foreground">
@@ -258,7 +265,7 @@ export function ChatView({ chatRoomId, currentUser, chatPartner, isGroupChat }: 
                 </Avatar>
             )}
             <div
-              className={`flex flex-col max-w-xs md:max-w-md lg:max-w-2xl rounded-2xl px-4 py-2 ${
+              className={`flex flex-col max-w-[80%] md:max-w-md lg:max-w-2xl rounded-2xl px-4 py-2 ${
                 message.senderId === currentUser.userId
                   ? 'bg-primary text-primary-foreground rounded-br-none'
                   : 'bg-card text-card-foreground rounded-bl-none shadow-sm'

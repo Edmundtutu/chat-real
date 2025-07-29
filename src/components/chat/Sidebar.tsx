@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { User } from '@/hooks/useUser';
 import { getChatRoomId } from '@/lib/utils';
 import { Skeleton } from '../ui/skeleton';
+import { useSidebar } from '../ui/sidebar';
 
 interface OnlineUser {
   name: string;
@@ -25,11 +26,12 @@ const groupChats = [
   { id: 'literature-corner', name: 'Literature Corner' },
 ];
 
-export function Sidebar({ currentUser }: { currentUser: User }) {
+export function ChatSidebar({ currentUser }: { currentUser: User }) {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [unreadMessages, setUnreadMessages] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
 
   useEffect(() => {
     const usersRef = query(ref(db, 'users'), orderByChild('name'));
@@ -50,16 +52,19 @@ export function Sidebar({ currentUser }: { currentUser: User }) {
   // Unread message listener
    useEffect(() => {
     if (!currentUser) return;
-    const allChats = [...onlineUsers.map(user => ({ id: getChatRoomId(currentUser.userId, user.userId), type: 'user' })), ...groupChats.map(group => ({ id: group.id, type: 'group' }))];
+    const allUserChatIds = onlineUsers.map(user => getChatRoomId(currentUser.userId, user.userId));
 
-    const unsubscribes = allChats.map(chat => {
-      const messagesRef = ref(db, `chats/${chat.id}/messages`);
-      return onValue(messagesRef, (snapshot) => {
-        if (snapshot.exists() && !pathname.includes(chat.type === 'user' ? chat.id.replace(currentUser.userId, '').replace('_', '') : chat.id)) {
+    const unsubscribes = [...allUserChatIds, ...groupChats.map(g => g.id)].map(chatId => {
+      const messagesRef = ref(db, `chats/${chatId}/messages`);
+      const q = query(messagesRef, orderByChild('timestamp'));
+      return onValue(q, (snapshot) => {
+        if (snapshot.exists() && !pathname.endsWith(chatId)) {
             const messages = Object.values(snapshot.val());
-            const lastMessage = messages[messages.length - 1] as any;
-            if(lastMessage.senderId !== currentUser.userId) {
-                 setUnreadMessages(prev => ({ ...prev, [chat.id]: true }));
+            if (messages.length > 0) {
+              const lastMessage = messages[messages.length - 1] as any;
+              if (lastMessage.senderId !== currentUser.userId) {
+                   setUnreadMessages(prev => ({ ...prev, [chatId]: true }));
+              }
             }
         }
       });
@@ -77,10 +82,11 @@ export function Sidebar({ currentUser }: { currentUser: User }) {
             return newUnread;
         });
      }
+     setOpenMobile(false);
    }
 
   return (
-    <aside className="w-80 h-full bg-secondary/30 border-r flex flex-col">
+    <div className="w-full h-full bg-secondary/30 border-r flex flex-col">
       <div className="p-4 border-b">
         <h1 className="text-2xl font-bold font-headline text-primary-foreground">ChatterEd</h1>
         <p className="text-sm text-muted-foreground">Welcome, {currentUser.name}</p>
@@ -146,6 +152,6 @@ export function Sidebar({ currentUser }: { currentUser: User }) {
           </TabsContent>
         </div>
       </Tabs>
-    </aside>
+    </div>
   );
 }
